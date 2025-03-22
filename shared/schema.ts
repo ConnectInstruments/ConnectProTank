@@ -20,6 +20,7 @@ export const tankSchema = z.object({
   capacity: z.number().positive(), // Capacity in liters
   status: z.enum(["online", "warning", "offline"]),
   lastUpdated: z.string().optional(),
+  dbType: z.enum(["memory", "postgres", "mysql", "mongodb"]).optional(),
 });
 
 export const insertTankSchema = tankSchema.omit({ id: true, lastUpdated: true });

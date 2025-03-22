@@ -76,7 +76,13 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      await createTank.mutateAsync(data);
+      // Include the database connection type with the tank data as a separate field
+      // The server will handle this properly in the routes
+      await createTank.mutateAsync({
+        ...data,
+        dbType: databaseConnection 
+      } as any); // Using type assertion to bypass TypeScript check
+      
       toast({
         title: "Success",
         description: `Tank ${data.name} has been added to ${databaseConnection} storage.`,

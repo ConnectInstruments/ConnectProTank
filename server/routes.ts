@@ -1,9 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, getStorage, IStorage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
 import { tankSchema, Tank } from "@shared/schema";
 import { z } from "zod";
+
+// Global storage instance, can be changed through API requests
+let currentStorage: IStorage = storage;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -18,7 +21,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Send the initial tanks data to the client
     const sendInitialData = async () => {
       try {
-        const tanks = await storage.getAllTanks();
+        const tanks = await currentStorage.getAllTanks();
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'INITIAL_DATA', payload: tanks }));
         }
@@ -47,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Simulate periodic tank updates
   setInterval(async () => {
     try {
-      const tanks = await storage.getAllTanks();
+      const tanks = await currentStorage.getAllTanks();
       if (tanks.length > 0) {
         // Update a random tank
         const randomIndex = Math.floor(Math.random() * tanks.length);
@@ -72,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Update the tank
-        const updatedTank = await storage.updateTank(tankToUpdate.id, {
+        const updatedTank = await currentStorage.updateTank(tankToUpdate.id, {
           fillLevel: newFillLevel,
           temperature: newTemperature,
           status: newStatus,
@@ -91,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all tanks
   app.get('/api/tanks', async (_req, res) => {
     try {
-      const tanks = await storage.getAllTanks();
+      const tanks = await currentStorage.getAllTanks();
       res.json(tanks);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch tanks' });
@@ -102,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/tanks/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const tank = await storage.getTank(id);
+      const tank = await currentStorage.getTank(id);
       
       if (!tank) {
         return res.status(404).json({ message: 'Tank not found' });
@@ -117,20 +120,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new tank
   app.post('/api/tanks', async (req, res) => {
     try {
-      const tankData = tankSchema.omit({ id: true, lastUpdated: true }).parse(req.body);
+      const { dbType, ...tankData } = req.body;
+      
+      // Parse the tank data
+      const validatedTankData = tankSchema.omit({ id: true, lastUpdated: true }).parse(tankData);
+      
+      // Check if a database type was specified
+      if (dbType && typeof dbType === 'string') {
+        try {
+          // Switch the storage implementation
+          currentStorage = getStorage(dbType);
+          console.log(`Switched to ${dbType} storage`);
+        } catch (error) {
+          console.error(`Error switching to ${dbType} storage:`, error);
+          return res.status(400).json({ 
+            message: `Could not use ${dbType} database. Falling back to current storage.` 
+          });
+        }
+      }
       
       // Add current timestamp
       const tank = {
-        ...tankData,
+        ...validatedTankData,
         lastUpdated: new Date().toISOString()
       };
       
-      const newTank = await storage.createTank(tank);
+      const newTank = await currentStorage.createTank(tank);
       
       // Broadcast the new tank to all clients
       broadcastUpdate('TANK_UPDATE', newTank);
       
-      res.status(201).json(newTank);
+      res.status(201).json({
+        ...newTank,
+        dbType: dbType || 'memory'
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: 'Invalid tank data', errors: error.errors });
@@ -143,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/tanks/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const success = await storage.deleteTank(id);
+      const success = await currentStorage.deleteTank(id);
       
       if (!success) {
         return res.status(404).json({ message: 'Tank not found' });
@@ -155,6 +178,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete tank' });
+    }
+  });
+
+  // Get storage status
+  app.get('/api/storage/status', (_req, res) => {
+    let currentType = 'memory';
+    
+    if (currentStorage instanceof (require('./storage').PostgresStorage)) {
+      currentType = 'postgres';
+    } else if (currentStorage instanceof (require('./storage').MySQLStorage)) {
+      currentType = 'mysql';
+    } else if (currentStorage instanceof (require('./storage').MongoDBStorage)) {
+      currentType = 'mongodb';
+    }
+    
+    res.json({
+      currentStorage: currentType,
+      databaseUrl: currentType === 'postgres' ? process.env.DATABASE_URL?.split('@')[1] || 'connected' : null,
+      availableTypes: ['memory', 'postgres', 'mysql', 'mongodb']
+    });
+  });
+
+  // Switch storage type
+  app.post('/api/storage/switch', (req, res) => {
+    try {
+      const { type } = req.body;
+      
+      if (!type || typeof type !== 'string') {
+        return res.status(400).json({ message: 'Storage type is required' });
+      }
+      
+      // Get the new storage implementation
+      currentStorage = getStorage(type);
+      
+      res.json({
+        message: `Switched to ${type} storage`,
+        currentStorage: type
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to switch storage type' });
     }
   });
 
