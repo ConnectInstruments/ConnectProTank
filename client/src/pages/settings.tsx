@@ -268,7 +268,7 @@ export default function SettingsPage() {
                           <FormItem>
                             <FormLabel>Tank Capacity (Liters)</FormLabel>
                             <FormControl>
-                              <Input type="number" min="100" max="150000" {...field} />
+                              <Input type="number" min="100" max="150000" placeholder="Enter tank capacity (up to 150000L)" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

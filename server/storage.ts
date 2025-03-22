@@ -118,7 +118,7 @@ export class MemStorage implements IStorage {
         name: "Tank C",
         fillLevel: 22,
         temperature: 25.7,
-        capacity: 3000, // 3000 liters
+        capacity: 150000, // 150000 liters
         status: "warning" as const,
         lastUpdated: now,
         group: "Storage",
