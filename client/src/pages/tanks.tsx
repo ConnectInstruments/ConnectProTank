@@ -12,7 +12,7 @@ export default function TanksPage() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      setLastUpdated(new Date());
+      setLastUpdated(prevDate => new Date());
     }, 60000);
 
     return () => clearInterval(intervalId);
