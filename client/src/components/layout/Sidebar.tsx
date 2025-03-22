@@ -6,7 +6,7 @@ import { FileText } from "lucide-react"; // Added import for FileTextIcon
 
 function useLogo() {
   // Placeholder -  Replace with actual logo state management
-  const logoUrl = "/path/to/default/logo.png"; // Default logo
+  const logoUrl ="/uploads/logo.png"; // Default logo
   return {logoUrl};
 }
 
