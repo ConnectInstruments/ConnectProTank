@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { FileText } from "lucide-react"; // Added import for FileTextIcon
 
 export default function Sidebar() {
   const [location] = useLocation();
@@ -67,7 +68,7 @@ export default function Sidebar() {
     {
       name: "Reports",
       path: "/reports",
-      icon: <FileTextIcon/>, // Requires lucide-react import
+      icon: <FileText />, // Corrected icon usage
     },
   ];
 
@@ -83,8 +84,8 @@ export default function Sidebar() {
             <div
               className={cn(
                 "flex items-center p-3 space-x-3 rounded-md transition cursor-pointer",
-                location === item.path || 
-                (item.path === "/tanks" && location === "/")
+                location === item.path ||
+                  (item.path === "/tanks" && location === "/")
                   ? "bg-neutral-100 dark:bg-neutral-700 text-primary"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-700"
               )}
