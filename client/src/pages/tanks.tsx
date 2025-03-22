@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = insertTankSchema.extend({
   fillLevel: z.coerce.number().min(0).max(100),
   temperature: z.coerce.number().min(-50).max(150),
+  capacity: z.coerce.number().positive().min(100).max(10000),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -34,6 +35,7 @@ export default function TanksPage() {
       name: "",
       fillLevel: 50,
       temperature: 24,
+      capacity: 1000,
       status: "online",
     },
   });
@@ -119,7 +121,7 @@ export default function TanksPage() {
       </div>
 
       {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatusCard
           title="All Systems"
           value={statistics.isAllSystemsOperational ? "Operational" : "Warning"}
@@ -140,6 +142,29 @@ export default function TanksPage() {
           }
           bgColorClass="bg-green-100 dark:bg-green-900/30"
           textColorClass="text-green-600 dark:text-green-400"
+        />
+
+        <StatusCard
+          title="Total Stock"
+          value={`${statistics.formattedTotalStock}`}
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-5 h-5"
+            >
+              <path d="M6 16.5l-3 2.94h18l-3-2.94" />
+              <path d="M2 18.5l.5-8h19l.5 8" />
+              <path d="M9.5 10.5v-8h5v8" />
+            </svg>
+          }
+          bgColorClass="bg-orange-100 dark:bg-orange-900/30"
+          textColorClass="text-orange-600 dark:text-orange-400"
         />
 
         <StatusCard
@@ -187,6 +212,36 @@ export default function TanksPage() {
           bgColorClass="bg-blue-100 dark:bg-blue-900/30"
           textColorClass="text-blue-600 dark:text-blue-400"
         />
+      </div>
+      
+      {/* Total Capacity Overview */}
+      <div className="mb-6 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-semibold">Total Capacity Status</h3>
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">
+              {statistics.formattedTotalStock} used of {statistics.formattedTotalCapacity} total capacity
+            </p>
+          </div>
+          <div className="bg-neutral-100 dark:bg-neutral-700 px-3 py-1 rounded-full">
+            <span className="text-sm font-medium">
+              {statistics.stockPercentage}% Utilized
+            </span>
+          </div>
+        </div>
+        
+        <div className="mt-4 w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-4 overflow-hidden">
+          <div 
+            className={`h-full rounded-full ${
+              statistics.stockPercentage > 90 
+                ? 'bg-red-500' 
+                : statistics.stockPercentage > 75 
+                  ? 'bg-yellow-500' 
+                  : 'bg-green-500'
+            }`}
+            style={{ width: `${statistics.stockPercentage}%` }}
+          ></div>
+        </div>
       </div>
 
       {/* Tank Grid */}
@@ -296,6 +351,19 @@ export default function TanksPage() {
                       <FormLabel>Temperature (°C)</FormLabel>
                       <FormControl>
                         <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="capacity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tank Capacity (Liters)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="100" max="10000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
