@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTankData } from "@/hooks/use-tank-data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,14 +6,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Shield, Lock, Check } from "lucide-react";
+import { Shield, Lock, Check, Database } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertTankSchema } from "@shared/schema";
+
+const formSchema = insertTankSchema.extend({
+  fillLevel: z.coerce.number().min(0).max(100),
+  temperature: z.coerce.number().min(-50).max(150),
+  capacity: z.coerce.number().positive().min(100).max(10000),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 // The required password for settings access
 const ADMIN_PASSWORD = "42013231";
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { tanks, deleteTank } = useTankData();
+  const { tanks, deleteTank, createTank } = useTankData();
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [tankToDelete, setTankToDelete] = useState<number | null>(null);
   
@@ -21,6 +34,19 @@ export default function SettingsPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showInvalidMessage, setShowInvalidMessage] = useState(false);
+  const [databaseConnection, setDatabaseConnection] = useState("memory");
+
+  // Form for adding tanks
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      fillLevel: 50,
+      temperature: 24,
+      capacity: 1000,
+      status: "online",
+    },
+  });
 
   const handleDeleteClick = (tankId: number) => {
     setTankToDelete(tankId);
@@ -45,6 +71,23 @@ export default function SettingsPage() {
         setIsConfirmDeleteOpen(false);
         setTankToDelete(null);
       }
+    }
+  };
+
+  const onSubmit = async (data: FormValues) => {
+    try {
+      await createTank.mutateAsync(data);
+      toast({
+        title: "Success",
+        description: `Tank ${data.name} has been added to ${databaseConnection} storage.`,
+      });
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add tank. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -121,18 +164,149 @@ export default function SettingsPage() {
 
           {/* Connected Tanks */}
           <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Connected Tanks</CardTitle>
-              <CardDescription>
-                Manage tanks connected to the monitoring system
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle>Connected Tanks</CardTitle>
+                <CardDescription>
+                  Manage tanks connected to the monitoring system
+                </CardDescription>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-4 h-4 mr-2"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
+                    Add Tank
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Tank</DialogTitle>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Tank name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <FormControl>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                {...field}
+                              >
+                                <option value="online">Online</option>
+                                <option value="warning">Warning</option>
+                                <option value="offline">Offline</option>
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="fillLevel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fill Level (%)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" max="100" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="temperature"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Temperature (°C)</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="capacity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tank Capacity (Liters)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="100" max="10000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="database-connection">Database Connection</Label>
+                        <div className="flex items-center space-x-2">
+                          <Database className="h-4 w-4 text-neutral-500" />
+                          <select
+                            id="database-connection"
+                            className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            value={databaseConnection}
+                            onChange={(e) => setDatabaseConnection(e.target.value)}
+                          >
+                            <option value="memory">In-Memory Storage</option>
+                            <option value="postgres">PostgreSQL Database</option>
+                            <option value="mysql">MySQL Database</option>
+                            <option value="mongodb">MongoDB</option>
+                          </select>
+                        </div>
+                        <p className="text-sm text-neutral-500">Select the database to store tank data</p>
+                      </div>
+                      <div className="flex justify-end space-x-2 pt-2">
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline">
+                            Cancel
+                          </Button>
+                        </DialogTrigger>
+                        <Button type="submit" disabled={createTank.isPending}>
+                          {createTank.isPending ? "Adding..." : "Add Tank"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 mt-2">
                 {tanks.length === 0 ? (
                   <div className="p-4 border border-dashed rounded-md text-center">
                     <p className="text-neutral-600 dark:text-neutral-400">
-                      No tanks connected yet. Add a tank from the Tank Levels page.
+                      No tanks connected yet. Use the "Add Tank" button to connect a new tank.
                     </p>
                   </div>
                 ) : (

@@ -4,59 +4,11 @@ import TankCard from "@/components/tank/TankCard";
 import { useTankData } from "@/hooks/use-tank-data";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertTankSchema } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-
-const formSchema = insertTankSchema.extend({
-  fillLevel: z.coerce.number().min(0).max(100),
-  temperature: z.coerce.number().min(-50).max(150),
-  capacity: z.coerce.number().positive().min(100).max(10000),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 export default function TanksPage() {
-  const { toast } = useToast();
-  const { tanks, isLoading, statistics, createTank } = useTankData();
+  const { tanks, isLoading, statistics } = useTankData();
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      fillLevel: 50,
-      temperature: 24,
-      capacity: 1000,
-      status: "online",
-    },
-  });
-
-  const onSubmit = async (data: FormValues) => {
-    try {
-      await createTank.mutateAsync(data);
-      toast({
-        title: "Success",
-        description: `Tank ${data.name} has been added successfully.`,
-      });
-      form.reset();
-      setIsAddDialogOpen(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add tank. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -246,145 +198,36 @@ export default function TanksPage() {
 
       {/* Tank Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tanks.map((tank) => (
-          <TankCard key={tank.id} tank={tank} />
-        ))}
-
-        {/* Add New Tank Card */}
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-dashed border-neutral-300 dark:border-neutral-600 overflow-hidden p-6 flex flex-col items-center justify-center min-h-[200px] cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-700/50 transition-colors">
-              <div className="p-3 bg-neutral-100 dark:bg-neutral-700 rounded-full mb-4">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-5 h-5 text-neutral-600 dark:text-neutral-300"
-                >
-                  <path d="M5 12h14" />
-                  <path d="M12 5v14" />
-                </svg>
-              </div>
-              <h3 className="font-medium text-lg mb-2 text-center">Add New Tank</h3>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mb-4">
-                Connect a new tank to the system
-              </p>
-              <Button variant="outline">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-4 h-4 mr-2"
-                >
-                  <path d="M5 12h14" />
-                  <path d="M12 5v14" />
-                </svg>
-                Add Tank
-              </Button>
+        {tanks.length === 0 ? (
+          <div className="col-span-full bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-8 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center mb-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-8 h-8 text-neutral-500"
+              >
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
             </div>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Tank</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Tank name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <FormControl>
-                        <select
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                          {...field}
-                        >
-                          <option value="online">Online</option>
-                          <option value="warning">Warning</option>
-                          <option value="offline">Offline</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fillLevel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fill Level (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" max="100" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="temperature"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Temperature (°C)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="capacity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tank Capacity (Liters)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="100" max="10000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end space-x-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createTank.isPending}>
-                    {createTank.isPending ? "Adding..." : "Add Tank"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+            <h3 className="text-xl font-medium mb-2">No Tanks Available</h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6 max-w-md mx-auto">
+              There are no tanks connected to the monitoring system yet. You can add tanks from the App Settings page.
+            </p>
+            <Button variant="outline" onClick={() => window.location.href = '/settings'}>
+              Go to Settings
+            </Button>
+          </div>
+        ) : (
+          tanks.map((tank) => (
+            <TankCard key={tank.id} tank={tank} />
+          ))
+        )}
       </div>
     </div>
   );
