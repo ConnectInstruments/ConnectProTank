@@ -62,13 +62,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="ui-theme">
         <LogoProvider>
-          <div className="flex h-screen overflow-hidden">
+          <div className="flex h-screen overflow-hidden bg-background">
             <Sidebar />
             <MobileSidebar open={mobileMenuOpen} onClose={toggleMobileMenu} />
-            <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex flex-col flex-1 w-full overflow-hidden">
               <TopBar onMobileMenuToggle={toggleMobileMenu} />
-              <main className="flex-1 overflow-y-auto p-4 md:p-6">
-                <div className="max-w-7xl mx-auto">
+              <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                <div className="max-w-7xl mx-auto w-full">
                   <Router />
                 </div>
               </main>

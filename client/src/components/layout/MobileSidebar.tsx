@@ -76,26 +76,11 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   return (
     <div className="fixed inset-0 bg-neutral-900/50 z-40 md:hidden">
       <aside className="flex flex-col w-64 h-full bg-white dark:bg-neutral-800 shadow-lg">
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-primary">ConnectPro</h1>
-          <button
-            className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700"
-            onClick={onClose}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-5 h-5"
-            >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
+          <div className="flex flex-col items-center gap-2">
+            <img src="/attached_assets/logo.png" alt="Logo" className="h-12 w-auto" />
+            <h1 className="text-xl font-bold text-primary text-center">ConnectPro</h1>
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -104,7 +89,7 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
               <a
                 className={cn(
                   "flex items-center p-3 space-x-3 rounded-md transition",
-                  location === item.path || 
+                  location === item.path ||
                   (item.path === "/tanks" && location === "/")
                     ? "bg-neutral-100 dark:bg-neutral-700 text-primary"
                     : "hover:bg-neutral-100 dark:hover:bg-neutral-700"

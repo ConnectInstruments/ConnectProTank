@@ -180,11 +180,11 @@ export default function SettingsPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 border rounded-lg flex items-center justify-center bg-white">
+                  <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-white">
                     <img
-                      src="/logo.svg"
+                      src={selectedLogo ? URL.createObjectURL(selectedLogo) : "/attached_assets/logo.png"}
                       alt="Current logo"
-                      className="max-w-full max-h-full p-2"
+                      className="max-w-full max-h-full p-2 object-contain"
                     />
                   </div>
                   <div className="flex-1">

@@ -83,11 +83,11 @@ export default function Sidebar() {
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 shadow-sm">
-      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
-        <div className="h-8 w-8 rounded-md bg-white flex items-center justify-center">
-          <img src={useLogo().logoUrl} alt="Logo" className="h-6 w-6" />
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="flex flex-col items-center gap-2">
+          <img src="/attached_assets/logo.png" alt="Logo" className="h-12 w-auto" />
+          <h1 className="text-xl font-bold text-primary text-center">ConnectPro</h1>
         </div>
-        <h1 className="text-xl font-bold text-primary">ConnectPro</h1>
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
