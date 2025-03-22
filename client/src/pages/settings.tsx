@@ -48,6 +48,9 @@ export default function SettingsPage() {
     },
   });
 
+  const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
+
+
   const handleDeleteClick = (tankId: number) => {
     setTankToDelete(tankId);
     setIsConfirmDeleteOpen(true);
@@ -187,27 +190,57 @@ export default function SettingsPage() {
                   <div className="flex-1">
                     <input
                       type="file"
-                      accept=".jpg,.jpeg,.svg"
+                      accept=".jpg,.jpeg,.png,.svg"
                       className="hidden"
                       id="logo-upload"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          // Handle file upload here
-                          const formData = new FormData();
-                          formData.append('logo', file);
-                          // Add your upload logic here
+                          // Store the selected file
+                          setSelectedLogo(file);
                         }
                       }}
                     />
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('logo-upload')?.click()}
-                    >
-                      Upload New Logo
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => document.getElementById('logo-upload')?.click()}
+                      >
+                        Select Logo
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          if (selectedLogo) {
+                            const formData = new FormData();
+                            formData.append('logo', selectedLogo);
+                            try {
+                              const response = await fetch('/api/upload-logo', {
+                                method: 'POST',
+                                body: formData
+                              });
+                              if (response.ok) {
+                                toast({
+                                  title: "Success",
+                                  description: "Logo updated successfully",
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to update logo",
+                                variant: "destructive",
+                              });
+                            }
+                          }
+                        }}
+                        disabled={!selectedLogo}
+                      >
+                        Save Logo
+                      </Button>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Supported formats: JPEG, SVG. Max size: 2MB
+                      Supported formats: JPEG, PNG, SVG. Max size: 2MB
                     </p>
                   </div>
                 </div>
