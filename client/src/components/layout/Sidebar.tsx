@@ -2,6 +2,15 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react"; // Added import for FileTextIcon
 
+// Missing Logo Context and Upload Logic
+
+function useLogo() {
+  // Placeholder -  Replace with actual logo state management
+  const logoUrl = "/path/to/default/logo.png"; // Default logo
+  return {logoUrl};
+}
+
+
 export default function Sidebar() {
   const [location] = useLocation();
 
@@ -75,6 +84,9 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 shadow-sm">
       <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
+        <div className="h-8 w-8 rounded-md bg-white flex items-center justify-center">
+          <img src={useLogo().logoUrl} alt="Logo" className="h-6 w-6" />
+        </div>
         <h1 className="text-xl font-bold text-primary">ConnectPro</h1>
       </div>
 

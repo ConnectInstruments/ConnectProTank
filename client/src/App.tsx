@@ -7,11 +7,36 @@ import NotFound from "@/pages/not-found";
 import TanksPage from "@/pages/tanks";
 import TemperaturesPage from "@/pages/temperatures";
 import SettingsPage from "@/pages/settings";
-import ReportsPage from "./pages/reports"; // Added import for ReportsPage
+import ReportsPage from "./pages/reports";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import MobileSidebar from "@/components/layout/MobileSidebar";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
+
+// Logo context
+const LogoContext = createContext(null);
+
+const LogoProvider = ({ children }) => {
+  const [logoUrl, setLogoUrl] = useState(null); // Initial logo URL (can be a default)
+
+  const updateLogo = (newLogoUrl) => {
+    setLogoUrl(newLogoUrl);
+  };
+
+  return (
+    <LogoContext.Provider value={{ logoUrl, updateLogo }}>
+      {children}
+    </LogoContext.Provider>
+  );
+};
+
+const useLogo = () => {
+  const context = useContext(LogoContext);
+  if (!context) {
+    throw new Error("useLogo must be used within a LogoProvider");
+  }
+  return context;
+};
 
 function Router() {
   return (
@@ -20,7 +45,7 @@ function Router() {
       <Route path="/tanks" component={TanksPage} />
       <Route path="/temperatures" component={TemperaturesPage} />
       <Route path="/settings" component={SettingsPage} />
-      <Route path="/reports" component={ReportsPage} /> {/* Added route for ReportsPage */}
+      <Route path="/reports" component={ReportsPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -36,20 +61,21 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar />
-          <MobileSidebar open={mobileMenuOpen} onClose={toggleMobileMenu} />
-
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <TopBar onMobileMenuToggle={toggleMobileMenu} />
-            <main className="flex-1 overflow-y-auto p-4 md:p-6">
-              <div className="max-w-7xl mx-auto">
-                <Router />
-              </div>
-            </main>
+        <LogoProvider>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <MobileSidebar open={mobileMenuOpen} onClose={toggleMobileMenu} />
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <TopBar onMobileMenuToggle={toggleMobileMenu} />
+              <main className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="max-w-7xl mx-auto">
+                  <Router />
+                </div>
+              </main>
+            </div>
           </div>
-        </div>
-        <Toaster />
+          <Toaster />
+        </LogoProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

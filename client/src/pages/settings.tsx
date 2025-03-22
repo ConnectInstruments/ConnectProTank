@@ -220,6 +220,8 @@ export default function SettingsPage() {
                                 body: formData
                               });
                               if (response.ok) {
+                                const { url } = await response.json();
+                                useLogo().setLogoUrl(url);
                                 toast({
                                   title: "Success",
                                   description: "Logo updated successfully",
