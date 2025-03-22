@@ -30,28 +30,32 @@ export class MemStorage implements IStorage {
         name: "Tank A",
         fillLevel: 65,
         temperature: 23.8,
-        status: "online",
+        capacity: 2000, // 2000 liters
+        status: "online" as const,
         lastUpdated: now
       },
       {
         name: "Tank B",
         fillLevel: 78,
         temperature: 24.2,
-        status: "online",
+        capacity: 1500, // 1500 liters
+        status: "online" as const,
         lastUpdated: now
       },
       {
         name: "Tank C",
         fillLevel: 22,
         temperature: 25.7,
-        status: "warning",
+        capacity: 3000, // 3000 liters
+        status: "warning" as const,
         lastUpdated: now
       },
       {
         name: "Tank D",
         fillLevel: 43,
         temperature: 24.3,
-        status: "online",
+        capacity: 1000, // 1000 liters
+        status: "online" as const,
         lastUpdated: now
       }
     ];

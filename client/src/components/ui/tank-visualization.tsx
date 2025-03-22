@@ -1,45 +1,34 @@
 import { useState, useEffect } from "react";
-import { Thermometer, Droplet, History, Settings } from "lucide-react";
+import { Thermometer, Droplet, History, Settings, Database } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { calculateTankVolume, formatLiters } from "@/lib/tank-utils";
+import { Tank } from "@shared/schema";
 
-interface TankProps {
-  id: number;
-  name: string;
-  location: string;
-  lastUpdated: Date;
-  level: number;
-  temperature: number;
-  volume: number;
-  maxCapacity: number;
+interface TankVisualizationProps {
+  tank: Tank;
   hasError?: boolean;
 }
 
 export default function TankVisualization({
-  id,
-  name,
-  location,
-  lastUpdated,
-  level,
-  temperature,
-  volume,
-  maxCapacity,
+  tank,
   hasError = false
-}: TankProps) {
-  const [animatedLevel, setAnimatedLevel] = useState(level);
+}: TankVisualizationProps) {
+  const { id, name, fillLevel, temperature, capacity, status, lastUpdated } = tank;
+  const [animatedLevel, setAnimatedLevel] = useState(fillLevel);
   const [lastUpdateText, setLastUpdateText] = useState("");
   
   // Animate level changes
   useEffect(() => {
-    setAnimatedLevel(level);
-  }, [level]);
+    setAnimatedLevel(fillLevel);
+  }, [fillLevel]);
   
   // Calculate how long since the last update
   useEffect(() => {
     const calculateTimeAgo = () => {
       const now = new Date();
-      const seconds = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / 1000);
+      const seconds = Math.floor((now.getTime() - new Date(lastUpdated || "").getTime()) / 1000);
       
       if (seconds < 60) {
         setLastUpdateText(`Updated: ${seconds} sec ago`);
@@ -56,10 +45,11 @@ export default function TankVisualization({
     return () => clearInterval(interval);
   }, [lastUpdated]);
   
-  // Calculate tank fill position
+  // Calculate tank fill position and volume
   const fillHeight = 100 - animatedLevel;
   const fillY = 20 + fillHeight;
-  const isCritical = level <= 15;
+  const isCritical = fillLevel <= 15;
+  const currentVolume = calculateTankVolume(tank);
   
   return (
     <Card className={cn(
@@ -70,7 +60,9 @@ export default function TankVisualization({
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-lg font-semibold">{name}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{location}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {status === "warning" ? "Low Level Alert" : "Normal Operation"}
+            </p>
           </div>
           {isCritical ? (
             <Badge variant="destructive" className="flex items-center gap-1">
@@ -86,7 +78,7 @@ export default function TankVisualization({
         
         <div className="mt-6 flex justify-center">
           {/* Tank SVG Visualization */}
-          <div className="relative w-40 h-56">
+          <div className="relative w-36 h-52 sm:w-40 sm:h-56">
             <svg viewBox="0 0 100 140" className="w-full h-full">
               {/* Tank body */}
               <rect 
@@ -149,56 +141,53 @@ export default function TankVisualization({
             <div className="absolute inset-0 flex items-center justify-center">
               <span 
                 className={cn(
-                  "text-2xl font-bold text-white px-2 py-1 rounded",
+                  "text-xl sm:text-2xl font-bold text-white px-2 py-1 rounded",
                   isCritical ? "bg-red-500/80" : "bg-orange-500/80"
                 )}
               >
-                {level}%
+                {Math.round(fillLevel)}%
               </span>
             </div>
           </div>
         </div>
         
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-3">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Temperature</div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-2 sm:p-3">
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Temperature</div>
             <div className="mt-1 flex items-center">
-              <Thermometer className="text-orange-500 h-4 w-4 mr-1" />
-              <span className="text-lg font-semibold">{temperature}°C</span>
+              <Thermometer className="text-orange-500 h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="text-sm sm:text-base font-semibold">{temperature}°C</span>
             </div>
           </div>
           
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-3">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Volume</div>
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-2 sm:p-3">
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Volume</div>
             <div className="mt-1 flex items-center">
               <Droplet className={cn(
-                "h-4 w-4 mr-1",
+                "h-3 w-3 sm:h-4 sm:w-4 mr-1",
                 isCritical ? "text-red-500" : "text-orange-500"
               )} />
-              <span className="text-lg font-semibold">{volume}L</span>
+              <span className="text-xs sm:text-sm font-semibold">
+                {formatLiters(currentVolume)} / {formatLiters(capacity)}
+              </span>
             </div>
           </div>
         </div>
         
-        <div className={cn(
-          "mt-4 flex",
-          isCritical ? "justify-between" : "justify-end"
-        )}>
-          {isCritical && (
-            <button type="button" className="inline-flex items-center px-2 py-1 text-xs rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none transition-colors duration-150">
-              <span className="mr-1">⚠️</span>
-              Refill Alert
-            </button>
-          )}
+        <div className="mt-2 flex justify-between items-center">
+          <div className="flex items-center">
+            <Database className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 mr-1" />
+            <span className="text-xs text-gray-500">Cap: {formatLiters(capacity)}</span>
+          </div>
           
-          <div className="flex space-x-2">
-            <button type="button" className="inline-flex items-center px-2 py-1 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-colors duration-150">
+          <div className="flex space-x-1 sm:space-x-2">
+            <button type="button" className="inline-flex items-center px-1 sm:px-2 py-1 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-colors duration-150">
               <History className="h-3 w-3 mr-1" />
-              History
+              <span className="hidden sm:inline">History</span>
             </button>
-            <button type="button" className="inline-flex items-center px-2 py-1 text-xs rounded-md text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-colors duration-150">
+            <button type="button" className="inline-flex items-center px-1 sm:px-2 py-1 text-xs rounded-md text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-colors duration-150">
               <Settings className="h-3 w-3 mr-1" />
-              Configure
+              <span className="hidden sm:inline">Configure</span>
             </button>
           </div>
         </div>

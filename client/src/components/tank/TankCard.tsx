@@ -1,7 +1,8 @@
 import { formatDistanceToNow } from "date-fns";
-import TankSvg from "./TankSvg";
 import { cn } from "@/lib/utils";
 import { Tank } from "@shared/schema";
+import TankVisualization from "@/components/ui/tank-visualization";
+import { calculateTankVolume, formatLiters } from "@/lib/tank-utils";
 
 interface TankCardProps {
   tank: Tank;
@@ -46,33 +47,8 @@ export default function TankCard({ tank }: TankCardProps) {
         </div>
       </div>
 
-      <div className="p-4 flex flex-col items-center">
-        <div className="relative w-40 h-60 mb-4">
-          <TankSvg fillLevel={tank.fillLevel} />
-        </div>
-
-        <div className="w-full space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Fill Level
-            </span>
-            <span className="font-medium">{tank.fillLevel}%</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Temperature
-            </span>
-            <span className="font-medium">{tank.temperature}°C</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Last Updated
-            </span>
-            <span className="text-sm">{lastUpdatedText}</span>
-          </div>
-        </div>
+      <div className="p-4">
+        <TankVisualization tank={tank} />
       </div>
 
       <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/30">

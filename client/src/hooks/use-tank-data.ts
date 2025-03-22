@@ -2,7 +2,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Tank, tankSchema } from "@shared/schema";
 import { useWebSocket } from "./use-websocket";
-import { calculateAverageFillLevel, calculateAverageTemperature } from "@/lib/tank-utils";
+import { 
+  calculateAverageFillLevel, 
+  calculateAverageTemperature, 
+  calculateTotalStock,
+  calculateTotalCapacity,
+  formatLiters
+} from "@/lib/tank-utils";
 
 export function useTankData() {
   const { lastMessage } = useWebSocket();
@@ -39,6 +45,15 @@ export function useTankData() {
             return newData;
           }
         );
+      } else if (parsedData.type === "TANK_DELETE") {
+        // Remove tank from cache when it's deleted
+        queryClient.setQueryData<Tank[]>(
+          ["/api/tanks"],
+          (oldData) => {
+            if (!oldData) return [];
+            return oldData.filter(tank => tank.id !== parsedData.payload.id);
+          }
+        );
       }
     } catch (e) {
       console.error("Error parsing WebSocket message:", e);
@@ -68,6 +83,9 @@ export function useTankData() {
   // Calculate statistics
   const avgFillLevel = calculateAverageFillLevel(tanks);
   const avgTemperature = calculateAverageTemperature(tanks);
+  const totalStock = calculateTotalStock(tanks);
+  const totalCapacity = calculateTotalCapacity(tanks);
+  const stockPercentage = totalCapacity ? Math.round((totalStock / totalCapacity) * 100) : 0;
   const isAllSystemsOperational = tanks.every((tank) => tank.status !== "offline");
 
   return {
@@ -80,6 +98,11 @@ export function useTankData() {
     statistics: {
       avgFillLevel,
       avgTemperature,
+      totalStock,
+      totalCapacity,
+      stockPercentage,
+      formattedTotalStock: formatLiters(totalStock),
+      formattedTotalCapacity: formatLiters(totalCapacity),
       isAllSystemsOperational,
     },
   };

@@ -7,6 +7,7 @@ export const tanks = pgTable("tanks", {
   name: text("name").notNull(),
   fillLevel: real("fill_level").notNull(),
   temperature: real("temperature").notNull(),
+  capacity: real("capacity").notNull().default(1000), // Default capacity in liters
   status: text("status").notNull().default("online"),
   lastUpdated: text("last_updated"),
 });
@@ -16,6 +17,7 @@ export const tankSchema = z.object({
   name: z.string().min(1),
   fillLevel: z.number().min(0).max(100),
   temperature: z.number(),
+  capacity: z.number().positive(), // Capacity in liters
   status: z.enum(["online", "warning", "offline"]),
   lastUpdated: z.string().optional(),
 });
