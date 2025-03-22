@@ -16,9 +16,9 @@ export default function TopBar({ onMobileMenuToggle }: TopBarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 shadow-sm">
       <div className="container flex h-16 items-center justify-between px-4">
+        <h1 className="text-xl font-bold text-primary">ConnectPro</h1>
         <div className="flex-1"></div>
-        <h1 className="text-xl font-bold text-primary text-center flex-1">ConnectPro</h1>
-        <div className="flex items-center space-x-4 flex-1">
+        <div className="flex items-center space-x-4">
           <div className="text-sm text-neutral-600 dark:text-neutral-300">
             <span>{date}</span> <span>{time}</span>
           </div>
