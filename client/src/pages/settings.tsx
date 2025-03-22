@@ -122,6 +122,53 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {/* Logo Upload Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Logo Settings</CardTitle>
+          <CardDescription>Upload or change your application logo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 border rounded-lg flex items-center justify-center bg-white">
+                <img
+                  src="/logo.svg"
+                  alt="Current logo"
+                  className="max-w-full max-h-full p-2"
+                />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.svg"
+                  className="hidden"
+                  id="logo-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Handle file upload here
+                      const formData = new FormData();
+                      formData.append('logo', file);
+                      // Add your upload logic here
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('logo-upload')?.click()}
+                >
+                  Upload New Logo
+                </Button>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Supported formats: JPEG, SVG. Max size: 2MB
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {!isAuthenticated ? (
         <Card className="max-w-md mx-auto my-12">
           <CardHeader>
