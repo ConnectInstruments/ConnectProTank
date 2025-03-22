@@ -2,203 +2,161 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
-import { insertTankSchema, updateTankSchema } from "@shared/schema";
-import { fromZodError } from "zod-validation-error";
-
-// Map to store all connected clients
-const clients = new Set<WebSocket>();
-
-// Broadcast to all connected clients
-function broadcastMessage(message: unknown) {
-  clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
-    }
-  });
-}
-
-// Simulate random tank level and temperature updates
-function simulateTankUpdates() {
-  setInterval(async () => {
-    const tanks = await storage.getTanks();
-    
-    // Select a random tank to update
-    const randomIndex = Math.floor(Math.random() * tanks.length);
-    const tankToUpdate = tanks[randomIndex];
-    
-    if (tankToUpdate) {
-      const maxCapacity = tankToUpdate.maxCapacity;
-      
-      // Random change (-5% to +5%)
-      const change = (Math.random() * 10 - 5) * (maxCapacity * 0.01);
-      
-      // Calculate new level (ensure it's between 0 and maxCapacity)
-      const newLevel = Math.max(0, Math.min(maxCapacity, tankToUpdate.currentLevel + change));
-      
-      // Small random temperature fluctuation (-0.5°C to +0.5°C)
-      const tempChange = (Math.random() - 0.5);
-      const newTemp = +(tankToUpdate.temperature + tempChange).toFixed(1);
-      
-      // Update the tank
-      const updatedTank = await storage.updateTankLevel(tankToUpdate.id, Math.round(newLevel), newTemp);
-      
-      if (updatedTank) {
-        // Broadcast the update to all clients
-        broadcastMessage({
-          type: "tank_update",
-          data: updatedTank
-        });
-      }
-    }
-  }, 5000); // Update every 5 seconds
-}
+import { tankSchema, Tank } from "@shared/schema";
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // API routes
+  const httpServer = createServer(app);
   
-  // Get all tanks
-  app.get("/api/tanks", async (req, res) => {
-    const tanks = await storage.getTanks();
-    res.json(tanks);
+  // Set up WebSocket server for real-time updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Handle WebSocket connections
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    
+    // Send the initial tanks data to the client
+    const sendInitialData = async () => {
+      try {
+        const tanks = await storage.getAllTanks();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'INITIAL_DATA', payload: tanks }));
+        }
+      } catch (error) {
+        console.error('Error sending initial data:', error);
+      }
+    };
+    
+    sendInitialData();
+    
+    // Handle client disconnections
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
   });
   
-  // Get a specific tank
-  app.get("/api/tanks/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid ID format" });
+  // Broadcast updates to all connected clients
+  const broadcastUpdate = (type: string, payload: any) => {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type, payload }));
+      }
+    });
+  };
+  
+  // Simulate periodic tank updates
+  setInterval(async () => {
+    try {
+      const tanks = await storage.getAllTanks();
+      if (tanks.length > 0) {
+        // Update a random tank
+        const randomIndex = Math.floor(Math.random() * tanks.length);
+        const tankToUpdate = tanks[randomIndex];
+        
+        // Create random variations
+        const fillLevelChange = Math.random() * 10 - 5; // -5 to +5
+        const temperatureChange = (Math.random() * 2 - 1) / 10; // -0.1 to +0.1
+        
+        let newFillLevel = tankToUpdate.fillLevel + fillLevelChange;
+        newFillLevel = Math.max(0, Math.min(100, newFillLevel)); // Keep between 0-100
+        
+        let newTemperature = tankToUpdate.temperature + temperatureChange;
+        newTemperature = parseFloat(newTemperature.toFixed(1));
+        
+        // Status changes based on fill level
+        let newStatus = tankToUpdate.status;
+        if (newFillLevel < 20 && tankToUpdate.status !== 'warning') {
+          newStatus = 'warning';
+        } else if (newFillLevel >= 20 && newFillLevel < 30 && tankToUpdate.status === 'warning') {
+          newStatus = 'online';
+        }
+        
+        // Update the tank
+        const updatedTank = await storage.updateTank(tankToUpdate.id, {
+          fillLevel: newFillLevel,
+          temperature: newTemperature,
+          status: newStatus,
+          lastUpdated: new Date().toISOString()
+        });
+        
+        // Broadcast the update
+        broadcastUpdate('TANK_UPDATE', updatedTank);
+      }
+    } catch (error) {
+      console.error('Error updating tanks:', error);
     }
-    
-    const tank = await storage.getTank(id);
-    if (!tank) {
-      return res.status(404).json({ message: "Tank not found" });
+  }, 5000); // Update every 5 seconds
+  
+  // API Routes
+  // Get all tanks
+  app.get('/api/tanks', async (_req, res) => {
+    try {
+      const tanks = await storage.getAllTanks();
+      res.json(tanks);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch tanks' });
     }
-    
-    res.json(tank);
+  });
+  
+  // Get a single tank
+  app.get('/api/tanks/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tank = await storage.getTank(id);
+      
+      if (!tank) {
+        return res.status(404).json({ message: 'Tank not found' });
+      }
+      
+      res.json(tank);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch tank' });
+    }
   });
   
   // Create a new tank
-  app.post("/api/tanks", async (req, res) => {
+  app.post('/api/tanks', async (req, res) => {
     try {
-      const validatedData = insertTankSchema.parse(req.body);
-      const newTank = await storage.createTank(validatedData);
+      const tankData = tankSchema.omit({ id: true, lastUpdated: true }).parse(req.body);
       
-      // Broadcast new tank to all clients
-      broadcastMessage({
-        type: "tank_created",
-        data: newTank
-      });
+      // Add current timestamp
+      const tank = {
+        ...tankData,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      const newTank = await storage.createTank(tank);
+      
+      // Broadcast the new tank to all clients
+      broadcastUpdate('TANK_UPDATE', newTank);
       
       res.status(201).json(newTank);
     } catch (error) {
-      if (error instanceof Error) {
-        const validationError = fromZodError(error);
-        res.status(400).json({ message: validationError.message });
-      } else {
-        res.status(500).json({ message: "An unknown error occurred" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid tank data', errors: error.errors });
       }
-    }
-  });
-  
-  // Update a tank
-  app.patch("/api/tanks/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid ID format" });
-    }
-    
-    try {
-      const validatedData = updateTankSchema.parse(req.body);
-      const updatedTank = await storage.updateTank(id, validatedData);
-      
-      if (!updatedTank) {
-        return res.status(404).json({ message: "Tank not found" });
-      }
-      
-      // Broadcast tank update to all clients
-      broadcastMessage({
-        type: "tank_updated",
-        data: updatedTank
-      });
-      
-      res.json(updatedTank);
-    } catch (error) {
-      if (error instanceof Error) {
-        const validationError = fromZodError(error);
-        res.status(400).json({ message: validationError.message });
-      } else {
-        res.status(500).json({ message: "An unknown error occurred" });
-      }
+      res.status(500).json({ message: 'Failed to create tank' });
     }
   });
   
   // Delete a tank
-  app.delete("/api/tanks/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid ID format" });
-    }
-    
-    const success = await storage.deleteTank(id);
-    if (!success) {
-      return res.status(404).json({ message: "Tank not found" });
-    }
-    
-    // Broadcast tank deletion to all clients
-    broadcastMessage({
-      type: "tank_deleted",
-      data: { id }
-    });
-    
-    res.status(204).send();
-  });
-  
-  // Get statistics
-  app.get("/api/stats", async (req, res) => {
-    const tanks = await storage.getTanks();
-    
-    const totalCapacity = tanks.reduce((sum, tank) => sum + tank.maxCapacity, 0);
-    const currentVolume = tanks.reduce((sum, tank) => sum + tank.currentLevel, 0);
-    const avgTemperature = tanks.length > 0 
-      ? +(tanks.reduce((sum, tank) => sum + tank.temperature, 0) / tanks.length).toFixed(1)
-      : 0;
-    
-    res.json({
-      totalCapacity,
-      currentVolume,
-      avgTemperature,
-      tankCount: tanks.length
-    });
-  });
-
-  // Create HTTP server
-  const httpServer = createServer(app);
-  
-  // Create WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  wss.on('connection', (ws) => {
-    // Add new client to the set
-    clients.add(ws);
-    
-    // Send initial tanks data
-    storage.getTanks().then(tanks => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: "initial_data",
-          data: tanks
-        }));
+  app.delete('/api/tanks/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTank(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Tank not found' });
       }
-    });
-    
-    // Handle client disconnect
-    ws.on('close', () => {
-      clients.delete(ws);
-    });
+      
+      // Broadcast the deletion to all clients
+      broadcastUpdate('TANK_DELETE', { id });
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete tank' });
+    }
   });
-  
-  // Start simulating tank updates
-  simulateTankUpdates();
 
   return httpServer;
 }

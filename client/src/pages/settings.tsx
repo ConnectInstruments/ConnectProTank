@@ -1,481 +1,181 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Save, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  RotateCcw,
-  GasStation
-} from "lucide-react";
+import { useTankData } from "@/hooks/use-tank-data";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import { useWebSocket } from "@/hooks/use-websocket";
-import { useThemeContext } from "@/components/ThemeProvider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
-  const { tanks } = useWebSocket();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { theme, setTheme } = useThemeContext();
-  
-  const [refreshInterval, setRefreshInterval] = useState(15);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [alertSoundEnabled, setAlertSoundEnabled] = useState(true);
-  const [exportFormat, setExportFormat] = useState("CSV");
-  
-  // Tank form state
-  const [showAddTankForm, setShowAddTankForm] = useState(false);
-  const [newTank, setNewTank] = useState({
-    name: "",
-    location: "",
-    connectionString: "",
-    maxCapacity: 1000,
-    refreshRate: 30,
-    alertThreshold: 15
-  });
-  
-  // Create tank mutation
-  const createTankMutation = useMutation({
-    mutationFn: async (tankData: any) => {
-      const response = await apiRequest("POST", "/api/tanks", tankData);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tanks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      setShowAddTankForm(false);
-      setNewTank({
-        name: "",
-        location: "",
-        connectionString: "",
-        maxCapacity: 1000,
-        refreshRate: 30,
-        alertThreshold: 15
-      });
-      toast({
-        title: "Success",
-        description: "Tank added successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add tank",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  // Delete tank mutation
-  const deleteTankMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/tanks/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tanks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({
-        title: "Success",
-        description: "Tank removed successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to remove tank",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  // Handle save settings
-  const handleSaveSettings = () => {
-    // In a real app, this would save to backend
-    toast({
-      title: "Settings Saved",
-      description: "Your application settings have been saved",
-    });
+  const { tanks, deleteTank } = useTankData();
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [tankToDelete, setTankToDelete] = useState<number | null>(null);
+
+  const handleDeleteClick = (tankId: number) => {
+    setTankToDelete(tankId);
+    setIsConfirmDeleteOpen(true);
   };
-  
-  // Handle add tank
-  const handleAddTank = () => {
-    createTankMutation.mutate({
-      ...newTank,
-      currentLevel: 0,
-      currentPercentage: 0,
-      temperature: 20.0,
-      isConnected: true
-    });
-  };
-  
-  // Handle delete tank
-  const handleDeleteTank = (id: number) => {
-    if (confirm("Are you sure you want to remove this tank?")) {
-      deleteTankMutation.mutate(id);
+
+  const confirmDelete = async () => {
+    if (tankToDelete !== null) {
+      try {
+        await deleteTank.mutateAsync(tankToDelete);
+        toast({
+          title: "Success",
+          description: "Tank has been removed successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to remove tank. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsConfirmDeleteOpen(false);
+        setTankToDelete(null);
+      }
     }
   };
-  
-  // Handle test connection
-  const handleTestConnection = (tankName: string) => {
-    toast({
-      title: "Connection Test",
-      description: `Successfully connected to ${tankName}`,
-    });
-  };
-  
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div>
+      {/* Section Header */}
+      <div className="mb-6">
         <h2 className="text-2xl font-bold">App Settings</h2>
-        <Button onClick={handleSaveSettings}>
-          <Save className="h-4 w-4 mr-2" />
-          Save Settings
-        </Button>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          Manage tank database connections and settings
+        </p>
       </div>
-      
-      <Card>
+
+      {/* Connected Tanks */}
+      <Card className="mb-8">
         <CardHeader>
-          <CardTitle>Tank Management</CardTitle>
+          <CardTitle>Connected Tanks</CardTitle>
+          <CardDescription>
+            Manage tanks connected to the monitoring system
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {tanks.map(tank => (
-              <div key={tank.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors duration-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 bg-orange-500/10 rounded-full flex items-center justify-center mr-3">
-                      <GasStation className="text-orange-500 h-4 w-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{tank.name}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{tank.location}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <button 
-                      type="button" 
-                      className="inline-flex items-center p-1 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      type="button" 
-                      className="inline-flex items-center p-1 text-red-400 hover:text-red-500 dark:hover:text-red-300"
-                      onClick={() => handleDeleteTank(tank.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {tanks.length === 0 ? (
+              <div className="p-4 border border-dashed rounded-md text-center">
+                <p className="text-neutral-600 dark:text-neutral-400">
+                  No tanks connected yet. Add a tank from the Tank Levels page.
+                </p>
+              </div>
+            ) : (
+              tanks.map((tank) => (
+                <div
+                  key={tank.id}
+                  className="p-4 border rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
                   <div>
-                    <Label htmlFor={`connection-${tank.id}`} className="block text-sm font-medium mb-1">
-                      Connection String
-                    </Label>
-                    <div className="relative">
-                      <Input 
-                        id={`connection-${tank.id}`}
-                        type="text" 
-                        value={tank.connectionString || ""} 
-                        className="pr-8"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor={`refresh-${tank.id}`} className="block text-sm font-medium mb-1">
-                      API Refresh Rate
-                    </Label>
                     <div className="flex items-center space-x-2">
-                      <Slider 
-                        id={`refresh-${tank.id}`}
-                        defaultValue={[tank.refreshRate]} 
-                        min={5} 
-                        max={60} 
-                        step={1}
-                        className="flex-1" 
-                      />
-                      <span className="text-sm font-medium w-8">{tank.refreshRate}s</span>
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          tank.status === "online"
+                            ? "bg-green-500"
+                            : tank.status === "warning"
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                        }`}
+                      ></span>
+                      <h3 className="font-medium">{tank.name}</h3>
                     </div>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                      Status: {tank.status}, Fill Level: {tank.fillLevel}%, Temp: {tank.temperature}°C
+                    </p>
                   </div>
-                  
-                  <div>
-                    <Label htmlFor={`capacity-${tank.id}`} className="block text-sm font-medium mb-1">
-                      Maximum Capacity
-                    </Label>
-                    <div className="relative">
-                      <Input 
-                        id={`capacity-${tank.id}`}
-                        type="number" 
-                        value={tank.maxCapacity} 
-                        className="pr-8"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <span className="text-gray-500 dark:text-gray-400">L</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor={`alert-${tank.id}`} className="block text-sm font-medium mb-1">
-                      Alert Threshold
-                    </Label>
-                    <div className="relative">
-                      <Input 
-                        id={`alert-${tank.id}`}
-                        type="number" 
-                        value={tank.alertThreshold} 
-                        className="pr-8"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <span className="text-gray-500 dark:text-gray-400">%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">Tank Status</span>
-                      <Badge variant="success">
-                        Connected
-                      </Badge>
-                    </div>
-                    
-                    <Button 
-                      variant="outline" 
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => handleTestConnection(tank.name)}
+                      onClick={() => handleDeleteClick(tank.id)}
+                      disabled={deleteTank.isPending}
                     >
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                      Test Connection
+                      Remove
                     </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-            
-            {showAddTankForm ? (
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors duration-200">
-                <h4 className="font-medium mb-4">Add New Tank</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="new-tank-name" className="block text-sm font-medium mb-1">
-                      Tank Name
-                    </Label>
-                    <Input 
-                      id="new-tank-name"
-                      type="text" 
-                      placeholder="e.g., Tank D-405"
-                      value={newTank.name}
-                      onChange={(e) => setNewTank({...newTank, name: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="new-tank-location" className="block text-sm font-medium mb-1">
-                      Location
-                    </Label>
-                    <Input 
-                      id="new-tank-location"
-                      type="text" 
-                      placeholder="e.g., West Facility"
-                      value={newTank.location}
-                      onChange={(e) => setNewTank({...newTank, location: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="new-tank-connection" className="block text-sm font-medium mb-1">
-                      Connection String
-                    </Label>
-                    <Input 
-                      id="new-tank-connection"
-                      type="text" 
-                      placeholder="mongodb://tankdb:27017/tanks/..."
-                      value={newTank.connectionString}
-                      onChange={(e) => setNewTank({...newTank, connectionString: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="new-tank-refresh" className="block text-sm font-medium mb-1">
-                      Refresh Rate (seconds)
-                    </Label>
-                    <Input 
-                      id="new-tank-refresh"
-                      type="number" 
-                      min={5}
-                      max={60}
-                      value={newTank.refreshRate}
-                      onChange={(e) => setNewTank({...newTank, refreshRate: parseInt(e.target.value)})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="new-tank-capacity" className="block text-sm font-medium mb-1">
-                      Maximum Capacity (L)
-                    </Label>
-                    <Input 
-                      id="new-tank-capacity"
-                      type="number" 
-                      min={100}
-                      value={newTank.maxCapacity}
-                      onChange={(e) => setNewTank({...newTank, maxCapacity: parseInt(e.target.value)})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="new-tank-alert" className="block text-sm font-medium mb-1">
-                      Alert Threshold (%)
-                    </Label>
-                    <Input 
-                      id="new-tank-alert"
-                      type="number" 
-                      min={5}
-                      max={50}
-                      value={newTank.alertThreshold}
-                      onChange={(e) => setNewTank({...newTank, alertThreshold: parseInt(e.target.value)})}
-                    />
-                  </div>
-                </div>
-                
-                <div className="mt-4 flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowAddTankForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleAddTank}
-                    disabled={!newTank.name || !newTank.location}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Tank
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button 
-                variant="outline" 
-                className="w-full flex items-center justify-center px-4 py-3 border-2 border-dashed"
-                onClick={() => setShowAddTankForm(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                <span>Add New Tank</span>
-              </Button>
+              ))
             )}
           </div>
         </CardContent>
       </Card>
-      
+
+      {/* API Connection */}
       <Card>
         <CardHeader>
-          <CardTitle>System Configuration</CardTitle>
+          <CardTitle>API Connection</CardTitle>
+          <CardDescription>
+            Configure the connection to the tank monitoring API
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Data Refresh Interval</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">How often to fetch new data from the server</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Slider 
-                  defaultValue={[refreshInterval]} 
-                  min={5} 
-                  max={60} 
-                  step={1}
-                  onValueChange={(val) => setRefreshInterval(val[0])}
-                  className="w-32" 
-                />
-                <span className="text-sm font-medium">{refreshInterval}s</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Theme Preference</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Choose between light, dark or system theme</p>
-              </div>
-              <div>
-                <Select 
-                  defaultValue={theme}
-                  onValueChange={(value: any) => setTheme(value)}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Select theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="system">System Default</SelectItem>
-                    <SelectItem value="light">Light Mode</SelectItem>
-                    <SelectItem value="dark">Dark Mode</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Notifications</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Enable browser notifications for alerts</p>
-              </div>
-              <div>
-                <Switch 
-                  checked={notificationsEnabled}
-                  onCheckedChange={setNotificationsEnabled}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="api-url">API URL</Label>
+                <Input
+                  id="api-url"
+                  placeholder="https://api.example.com"
+                  defaultValue={window.location.origin}
                 />
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Alert Sound</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Play sound when tank level is below threshold</p>
-              </div>
-              <div>
-                <Switch 
-                  checked={alertSoundEnabled}
-                  onCheckedChange={setAlertSoundEnabled}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="api-key">API Key</Label>
+                <Input id="api-key" type="password" placeholder="Enter API key" />
               </div>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Data Export Format</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Format for exporting tank data reports</p>
-              </div>
-              <div>
-                <Select 
-                  defaultValue={exportFormat}
-                  onValueChange={setExportFormat}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CSV">CSV</SelectItem>
-                    <SelectItem value="JSON">JSON</SelectItem>
-                    <SelectItem value="Excel">Excel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="polling-interval">Polling Interval (seconds)</Label>
+              <Input
+                id="polling-interval"
+                type="number"
+                min="1"
+                defaultValue="5"
+              />
             </div>
           </div>
         </CardContent>
+        <CardFooter className="flex justify-end">
+          <Button
+            onClick={() => {
+              toast({
+                title: "Settings Saved",
+                description: "Your API connection settings have been updated.",
+              });
+            }}
+          >
+            Save Changes
+          </Button>
+        </CardFooter>
       </Card>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Tank Removal</DialogTitle>
+          </DialogHeader>
+          <p>
+            Are you sure you want to remove this tank from the monitoring system? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              {deleteTank.isPending ? "Removing..." : "Remove Tank"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

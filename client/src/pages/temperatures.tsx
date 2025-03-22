@@ -1,148 +1,223 @@
 import { useState, useEffect } from "react";
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTankData } from "@/hooks/use-tank-data";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useWebSocket } from "@/hooks/use-websocket";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { formatDistanceToNow } from "date-fns";
+import { Tank } from "@shared/schema";
+
+const generateTemperatureHistory = (tank: Tank) => {
+  // Generate some fake historical data based on current temperature
+  const currentTemp = tank.temperature;
+  const history = [];
+  const now = new Date();
+  
+  for (let i = 12; i >= 0; i--) {
+    const timePoint = new Date(now.getTime() - i * 3600000); // hourly data points
+    // Add some variation to the temperature
+    const variation = Math.sin(i * 0.5) * 2;
+    const temp = (currentTemp + variation).toFixed(1);
+    
+    history.push({
+      time: timePoint.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      temperature: parseFloat(temp),
+    });
+  }
+  
+  return history;
+};
 
 export default function TemperaturesPage() {
-  const { tanks } = useWebSocket();
+  const { tanks, isLoading } = useTankData();
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [temperatureData, setTemperatureData] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d">("1h");
-  
-  // Generate some historical data for temperatures
+
   useEffect(() => {
-    if (tanks.length === 0) return;
-    
-    const generateData = () => {
-      const now = new Date();
-      const data = [];
-      
-      // Different time intervals based on range
-      const intervals = {
-        "1h": { count: 12, minutes: 5 },   // 5-minute intervals for 1 hour
-        "24h": { count: 24, minutes: 60 }, // 1-hour intervals for 24 hours
-        "7d": { count: 7, minutes: 1440 }  // 1-day intervals for 7 days
-      };
-      
-      const { count, minutes } = intervals[timeRange];
-      
-      for (let i = count - 1; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * minutes * 60 * 1000);
-        const timeLabel = time.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: timeRange === "1h" ? 'numeric' : undefined,
-          hour12: true
-        });
+    if (tanks && tanks.length > 0) {
+      // All tanks view - combine data for multiline chart
+      if (activeTab === "all") {
+        const combinedData = [];
+        const now = new Date();
         
-        const entry: any = {
-          time: timeRange === "7d" 
-            ? time.toLocaleDateString('en-US', { weekday: 'short' }) 
-            : timeLabel
-        };
+        for (let i = 12; i >= 0; i--) {
+          const timePoint = new Date(now.getTime() - i * 3600000);
+          const dataPoint: any = {
+            time: timePoint.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          
+          tanks.forEach(tank => {
+            // Create a unique variation for each tank
+            const variation = Math.sin(i * 0.5 + tank.id * 0.3) * 2;
+            const temp = (tank.temperature + variation).toFixed(1);
+            dataPoint[tank.name] = parseFloat(temp);
+          });
+          
+          combinedData.push(dataPoint);
+        }
         
-        // Add temperature for each tank with small random variations
-        tanks.forEach(tank => {
-          // Base temperature from current tank with random fluctuation
-          const baseTemp = tank.temperature;
-          const randomVariation = (Math.sin(i / (count / 4)) + Math.random() - 0.5) * 2;
-          entry[tank.name] = +(baseTemp + randomVariation).toFixed(1);
-        });
+        setTemperatureData(combinedData);
+      } else {
+        // Single tank view
+        const tankId = parseInt(activeTab, 10);
+        const tank = tanks.find(t => t.id === tankId);
         
-        data.push(entry);
+        if (tank) {
+          setTemperatureData(generateTemperatureHistory(tank));
+        }
       }
-      
-      return data;
-    };
-    
-    setTemperatureData(generateData());
-  }, [tanks, timeRange]);
-  
-  const colors = [
-    "#FF7A00", // Primary orange
-    "#3B82F6", // Blue
-    "#10B981", // Green
-    "#F59E0B", // Amber
-    "#EC4899"  // Pink
-  ];
-  
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Temperature Monitoring</h2>
+    }
+  }, [tanks, activeTab]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setLastUpdated(new Date());
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-lg text-neutral-600 dark:text-neutral-400">Loading temperature data...</p>
+        </div>
       </div>
-      
+    );
+  }
+
+  return (
+    <div>
+      {/* Section Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">Temperatures</h2>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+            Monitor temperature readings from all tanks
+          </p>
+        </div>
+
+        <div className="mt-4 md:mt-0 flex items-center space-x-2">
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            Last updated: {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+          </div>
+        </div>
+      </div>
+
+      {/* Temperature Chart */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Temperature Trends</CardTitle>
-            <Tabs defaultValue="1h" value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <h3 className="text-lg font-semibold">Temperature History</h3>
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
               <TabsList>
-                <TabsTrigger value="1h">1 Hour</TabsTrigger>
-                <TabsTrigger value="24h">24 Hours</TabsTrigger>
-                <TabsTrigger value="7d">7 Days</TabsTrigger>
+                <TabsTrigger value="all">All Tanks</TabsTrigger>
+                {tanks.map((tank) => (
+                  <TabsTrigger key={tank.id} value={tank.id.toString()}>
+                    {tank.name}
+                  </TabsTrigger>
+                ))}
               </TabsList>
             </Tabs>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
+          <div className="h-[400px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={temperatureData}
                 margin={{
-                  top: 20,
+                  top: 5,
                   right: 30,
                   left: 20,
-                  bottom: 10,
+                  bottom: 25,
                 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128, 128, 128, 0.2)" />
-                <XAxis dataKey="time" stroke="rgba(128, 128, 128, 0.5)" />
-                <YAxis 
-                  stroke="rgba(128, 128, 128, 0.5)"
-                  domain={["dataMin - 2", "dataMax + 2"]}
-                  label={{ value: "Temperature (°C)", angle: -90, position: "insideLeft" }}
-                />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="time" />
+                <YAxis domain={['auto', 'auto']} label={{ value: '°C', angle: -90, position: 'insideLeft' }} />
                 <Tooltip />
-                <Legend />
-                {tanks.map((tank, index) => (
+                <Legend verticalAlign="top" height={36} />
+                
+                {activeTab === "all" ? (
+                  tanks.map((tank, index) => (
+                    <Line
+                      key={tank.id}
+                      type="monotone"
+                      dataKey={tank.name}
+                      stroke={`hsl(${index * 40}, 70%, 50%)`}
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  ))
+                ) : (
                   <Line
-                    key={tank.id}
                     type="monotone"
-                    dataKey={tank.name}
-                    stroke={colors[index % colors.length]}
+                    dataKey="temperature"
+                    stroke="hsl(28, 100%, 50%)"
                     strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
                   />
-                ))}
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tanks.map((tank, index) => (
-          <Card key={tank.id}>
-            <CardHeader>
-              <CardTitle className="text-base">{tank.name} Temperature</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <div className="h-16 w-16 flex items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900 mr-4">
-                  <span className="text-xl font-bold text-orange-500">{tank.temperature}°C</span>
+      {/* Current Temperatures */}
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-4">Current Readings</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tanks.map((tank) => (
+            <Card key={tank.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">{tank.name}</h4>
+                    <p className="text-2xl font-bold">{tank.temperature}°C</p>
+                  </div>
+                  <div className={`p-3 rounded-full ${
+                    tank.temperature > 30 
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" 
+                      : tank.temperature < 15
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                      : "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                  }`}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-5 h-5"
+                    >
+                      <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+                    </svg>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Location: {tank.location}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {tank.temperature > 25 ? "⚠️ Above normal" : "✓ Normal range"}
-                  </p>
+                <div className="mt-4 flex justify-between items-center text-sm text-neutral-600 dark:text-neutral-400">
+                  <span>Status: {tank.status.charAt(0).toUpperCase() + tank.status.slice(1)}</span>
+                  <span>Fill Level: {tank.fillLevel}%</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
