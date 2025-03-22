@@ -8,7 +8,7 @@ export const tanks = pgTable("tanks", {
   name: text("name").notNull(),
   fillLevel: real("fill_level").notNull(),
   temperature: real("temperature").notNull(),
-  capacity: real("capacity").notNull().default(1000), // Default capacity in liters
+  capacity: real("capacity").notNull().default(150000), // Default capacity in liters
   status: text("status").notNull().default("online"),
   lastUpdated: text("last_updated"),
   location: text("location"), // Physical location of the tank

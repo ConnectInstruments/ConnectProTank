@@ -237,7 +237,17 @@ export class MemStorage implements IStorage {
 
   // Basic tank operations
   async getAllTanks(): Promise<Tank[]> {
-    return Array.from(this.tanks.values());
+    try {
+      return Array.from(this.tanks.values());
+    } catch (error) {
+      return Array.from(this.tanks.values()).map(tank => ({
+        ...tank,
+        status: 'offline',
+        fillLevel: 0,
+        temperature: 20,
+        capacity: 150000
+      }));
+    }
   }
 
   async getTank(id: number): Promise<Tank | undefined> {

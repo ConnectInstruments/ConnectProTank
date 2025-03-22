@@ -199,10 +199,11 @@ export class FirebaseStorage implements IStorage {
     const listenerId = Date.now().toString();
     
     const handleTanksUpdate = (snapshot: any) => {
-      if (!snapshot.exists()) {
-        callback([]);
-        return;
-      }
+      try {
+        if (!snapshot.exists()) {
+          callback([]);
+          return;
+        }
       
       const tanksData = snapshot.val();
       const tanks = Object.entries(tanksData).map(([id, data]: [string, any]) => ({
@@ -216,7 +217,16 @@ export class FirebaseStorage implements IStorage {
       }));
       
       callback(tanks);
-    };
+    } catch (error) {
+      callback(tanks.map(tank => ({
+        ...tank,
+        status: 'offline',
+        fillLevel: 0,
+        temperature: 20,
+        capacity: 150000
+      })));
+    }
+  };
     
     onValue(this.tanksRef, handleTanksUpdate);
     this.listeners.set(listenerId, { ref: this.tanksRef, handler: handleTanksUpdate });
