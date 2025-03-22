@@ -75,9 +75,9 @@ export default function Sidebar() {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => (
           <Link key={item.path} href={item.path}>
-            <a
+            <div
               className={cn(
-                "flex items-center p-3 space-x-3 rounded-md transition",
+                "flex items-center p-3 space-x-3 rounded-md transition cursor-pointer",
                 location === item.path || 
                 (item.path === "/tanks" && location === "/")
                   ? "bg-neutral-100 dark:bg-neutral-700 text-primary"
@@ -86,7 +86,7 @@ export default function Sidebar() {
             >
               {item.icon}
               <span className="font-medium">{item.name}</span>
-            </a>
+            </div>
           </Link>
         ))}
       </nav>

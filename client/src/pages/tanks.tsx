@@ -219,7 +219,7 @@ export default function TanksPage() {
             <p className="text-neutral-600 dark:text-neutral-400 mb-6 max-w-md mx-auto">
               There are no tanks connected to the monitoring system yet. You can add tanks from the App Settings page.
             </p>
-            <Button variant="outline" onClick={() => window.location.href = '/settings'}>
+            <Button variant="outline" onClick={() => window.location.pathname = '/settings'}>
               Go to Settings
             </Button>
           </div>

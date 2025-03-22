@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Tank, tankSchema } from "@shared/schema";
 import { useWebSocket } from "./use-websocket";
@@ -23,8 +24,10 @@ export function useTankData() {
     queryKey: ["/api/tanks"],
   });
 
-  // Update when receiving WebSocket messages
-  if (lastMessage) {
+  // Handle WebSocket messages with useEffect to avoid infinite renders
+  useEffect(() => {
+    if (!lastMessage) return;
+    
     try {
       const parsedData = JSON.parse(lastMessage.data);
       if (parsedData.type === "TANK_UPDATE") {
@@ -58,7 +61,7 @@ export function useTankData() {
     } catch (e) {
       console.error("Error parsing WebSocket message:", e);
     }
-  }
+  }, [lastMessage]);
 
   // Create a new tank
   const createTank = useMutation({
