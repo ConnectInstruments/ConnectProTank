@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTankData } from "@/hooks/use-tank-data";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Shield, Lock, Check } from "lucide-react";
+
+// The required password for settings access
+const ADMIN_PASSWORD = "42013231";
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tanks, deleteTank } = useTankData();
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [tankToDelete, setTankToDelete] = useState<number | null>(null);
+  
+  // Password authentication states
+  const [password, setPassword] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showInvalidMessage, setShowInvalidMessage] = useState(false);
 
   const handleDeleteClick = (tankId: number) => {
     setTankToDelete(tankId);
@@ -39,6 +48,21 @@ export default function SettingsPage() {
     }
   };
 
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setShowInvalidMessage(false);
+      toast({
+        title: "Access Granted",
+        description: "You now have access to the admin settings.",
+      });
+    } else {
+      setShowInvalidMessage(true);
+      setPassword("");
+    }
+  };
+
   return (
     <div>
       {/* Section Header */}
@@ -49,133 +73,184 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Connected Tanks */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Connected Tanks</CardTitle>
-          <CardDescription>
-            Manage tanks connected to the monitoring system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {tanks.length === 0 ? (
-              <div className="p-4 border border-dashed rounded-md text-center">
-                <p className="text-neutral-600 dark:text-neutral-400">
-                  No tanks connected yet. Add a tank from the Tank Levels page.
-                </p>
+      {!isAuthenticated ? (
+        <Card className="max-w-md mx-auto my-12">
+          <CardHeader>
+            <div className="flex items-center justify-center mb-2">
+              <Shield className="h-12 w-12 text-orange-500 mb-2" />
+            </div>
+            <CardTitle className="text-center">Admin Authentication Required</CardTitle>
+            <CardDescription className="text-center">
+              Please enter the admin password to access settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Admin Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="Enter admin password"
+                    className="pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                {showInvalidMessage && (
+                  <p className="text-sm text-red-500 mt-1">Invalid password. Please try again.</p>
+                )}
               </div>
-            ) : (
-              tanks.map((tank) => (
-                <div
-                  key={tank.id}
-                  className="p-4 border rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`inline-block h-2 w-2 rounded-full ${
-                          tank.status === "online"
-                            ? "bg-green-500"
-                            : tank.status === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
-                      ></span>
-                      <h3 className="font-medium">{tank.name}</h3>
-                    </div>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
-                      Status: {tank.status}, Fill Level: {tank.fillLevel}%, Temp: {tank.temperature}°C
+              <Button type="submit" className="w-full">
+                Authenticate
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Authenticated banner */}
+          <div className="mb-6 bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md p-3 flex items-center">
+            <Check className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
+            <span className="text-green-800 dark:text-green-300 font-medium">
+              Admin access granted. You can now manage all settings.
+            </span>
+          </div>
+
+          {/* Connected Tanks */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Connected Tanks</CardTitle>
+              <CardDescription>
+                Manage tanks connected to the monitoring system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {tanks.length === 0 ? (
+                  <div className="p-4 border border-dashed rounded-md text-center">
+                    <p className="text-neutral-600 dark:text-neutral-400">
+                      No tanks connected yet. Add a tank from the Tank Levels page.
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteClick(tank.id)}
-                      disabled={deleteTank.isPending}
+                ) : (
+                  tanks.map((tank) => (
+                    <div
+                      key={tank.id}
+                      className="p-4 border rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4"
                     >
-                      Remove
-                    </Button>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span
+                            className={`inline-block h-2 w-2 rounded-full ${
+                              tank.status === "online"
+                                ? "bg-green-500"
+                                : tank.status === "warning"
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                            }`}
+                          ></span>
+                          <h3 className="font-medium">{tank.name}</h3>
+                        </div>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                          Status: {tank.status}, Fill Level: {tank.fillLevel}%, Temp: {tank.temperature}°C
+                        </p>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                          Capacity: {tank.capacity} L
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteClick(tank.id)}
+                          disabled={deleteTank.isPending}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* API Connection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>API Connection</CardTitle>
+              <CardDescription>
+                Configure the connection to the tank monitoring API
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-url">API URL</Label>
+                    <Input
+                      id="api-url"
+                      placeholder="https://api.example.com"
+                      defaultValue={window.location.origin}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key">API Key</Label>
+                    <Input id="api-key" type="password" placeholder="Enter API key" />
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* API Connection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>API Connection</CardTitle>
-          <CardDescription>
-            Configure the connection to the tank monitoring API
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="api-url">API URL</Label>
-                <Input
-                  id="api-url"
-                  placeholder="https://api.example.com"
-                  defaultValue={window.location.origin}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="polling-interval">Polling Interval (seconds)</Label>
+                  <Input
+                    id="polling-interval"
+                    type="number"
+                    min="1"
+                    defaultValue="5"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="api-key">API Key</Label>
-                <Input id="api-key" type="password" placeholder="Enter API key" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="polling-interval">Polling Interval (seconds)</Label>
-              <Input
-                id="polling-interval"
-                type="number"
-                min="1"
-                defaultValue="5"
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button
-            onClick={() => {
-              toast({
-                title: "Settings Saved",
-                description: "Your API connection settings have been updated.",
-              });
-            }}
-          >
-            Save Changes
-          </Button>
-        </CardFooter>
-      </Card>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button
+                onClick={() => {
+                  toast({
+                    title: "Settings Saved",
+                    description: "Your API connection settings have been updated.",
+                  });
+                }}
+              >
+                Save Changes
+              </Button>
+            </CardFooter>
+          </Card>
 
-      {/* Confirm Delete Dialog */}
-      <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Tank Removal</DialogTitle>
-          </DialogHeader>
-          <p>
-            Are you sure you want to remove this tank from the monitoring system? This action cannot be undone.
-          </p>
-          <div className="flex justify-end space-x-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsConfirmDeleteOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              {deleteTank.isPending ? "Removing..." : "Remove Tank"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          {/* Confirm Delete Dialog */}
+          <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Tank Removal</DialogTitle>
+              </DialogHeader>
+              <p>
+                Are you sure you want to remove this tank from the monitoring system? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsConfirmDeleteOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmDelete}>
+                  {deleteTank.isPending ? "Removing..." : "Remove Tank"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
