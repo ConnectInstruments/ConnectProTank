@@ -14,32 +14,11 @@ export default function TopBar({ onMobileMenuToggle }: TopBarProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 shadow-sm">
-      <div className="flex items-center justify-between h-16 px-4">
-        <div className="flex items-center">
-          <button
-            className="md:hidden p-2 mr-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700"
-            onClick={onMobileMenuToggle}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-5 h-5"
-            >
-              <line x1="3" x2="21" y1="6" y2="6" />
-              <line x1="3" x2="21" y1="12" y2="12" />
-              <line x1="3" x2="21" y1="18" y2="18" />
-            </svg>
-          </button>
-          <h1 className="md:hidden text-lg font-bold text-primary">ConnectPro</h1>
-        </div>
-
-        <div className="flex items-center space-x-4">
+    <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 shadow-sm">
+      <div className="container flex h-16 items-center justify-between px-4">
+        <div className="flex-1"></div>
+        <h1 className="text-xl font-bold text-primary text-center flex-1">ConnectPro</h1>
+        <div className="flex items-center space-x-4 flex-1">
           <div className="text-sm text-neutral-600 dark:text-neutral-300">
             <span>{date}</span> <span>{time}</span>
           </div>

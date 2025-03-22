@@ -86,7 +86,6 @@ export default function Sidebar() {
       <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex flex-col items-center gap-2">
           <img src="/attached_assets/logo.png" alt="Logo" className="h-12 w-auto" />
-          <h1 className="text-xl font-bold text-primary text-center">ConnectPro</h1>
         </div>
       </div>
 
