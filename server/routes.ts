@@ -191,12 +191,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       currentType = 'mysql';
     } else if (currentStorage instanceof (require('./storage').MongoDBStorage)) {
       currentType = 'mongodb';
+    } else if (currentStorage instanceof (require('./firebase-storage').FirebaseStorage)) {
+      currentType = 'firebase';
     }
     
     res.json({
       currentStorage: currentType,
-      databaseUrl: currentType === 'postgres' ? process.env.DATABASE_URL?.split('@')[1] || 'connected' : null,
-      availableTypes: ['memory', 'postgres', 'mysql', 'mongodb']
+      databaseUrl: currentType === 'postgres' ? process.env.DATABASE_URL?.split('@')[1] || 'connected' : 
+                  currentType === 'firebase' ? `${process.env.FIREBASE_PROJECT_ID}-rtdb` || 'connected' : null,
+      availableTypes: ['memory', 'firebase', 'postgres', 'mysql', 'mongodb']
     });
   });
 

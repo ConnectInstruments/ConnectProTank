@@ -370,9 +370,14 @@ export class MongoDBStorage implements IStorage {
   }
 }
 
+// Import Firebase storage (using dynamic import to avoid circular dependencies)
+import { FirebaseStorage } from './firebase-storage';
+
 // Factory function to get the appropriate storage implementation
 export function getStorage(type: string): IStorage {
   switch (type) {
+    case 'firebase':
+      return new FirebaseStorage();
     case 'postgres':
       return new PostgresStorage();
     case 'mysql':

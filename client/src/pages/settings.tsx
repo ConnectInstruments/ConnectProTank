@@ -285,6 +285,7 @@ export default function SettingsPage() {
                             onChange={(e) => setDatabaseConnection(e.target.value)}
                           >
                             <option value="memory">In-Memory Storage</option>
+                            <option value="firebase">Firebase Database</option>
                             <option value="postgres">PostgreSQL Database</option>
                             <option value="mysql">MySQL Database</option>
                             <option value="mongodb">MongoDB</option>
