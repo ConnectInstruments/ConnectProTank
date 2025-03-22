@@ -16,7 +16,7 @@ import { insertTankSchema } from "@shared/schema";
 const formSchema = insertTankSchema.extend({
   fillLevel: z.coerce.number().min(0).max(100),
   temperature: z.coerce.number().min(-50).max(150),
-  capacity: z.coerce.number().positive().min(100).max(10000),
+  capacity: z.coerce.number().positive().min(100).max(150000),
 });
 
 type FormValues = z.infer<typeof formSchema>;
