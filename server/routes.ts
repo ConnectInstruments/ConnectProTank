@@ -225,5 +225,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reports endpoints
+  app.get('/api/reports/:type', async (req, res) => {
+    const { type } = req.params;
+    const tanks = await currentStorage.getAllTanks();
+    
+    try {
+      let csvContent = '';
+      
+      switch (type) {
+        case 'status':
+          csvContent = 'Tank ID,Name,Fill Level,Temperature,Status,Capacity,Last Updated\n';
+          tanks.forEach(tank => {
+            csvContent += `${tank.id},${tank.name},${tank.fillLevel},${tank.temperature},${tank.status},${tank.capacity},${tank.lastUpdated}\n`;
+          });
+          break;
+          
+        case 'history':
+          const history = await Promise.all(tanks.map(tank => currentStorage.getTankHistory(tank.id)));
+          csvContent = 'Tank ID,Event Type,Value,Description,Timestamp\n';
+          history.flat().forEach(entry => {
+            if (entry) {
+              csvContent += `${entry.tankId},${entry.eventType},${entry.value || ''},${entry.description},${entry.timestamp}\n`;
+            }
+          });
+          break;
+          
+        case 'maintenance':
+          const maintenance = await Promise.all(tanks.map(tank => currentStorage.getTankMaintenance(tank.id)));
+          csvContent = 'Tank ID,Scheduled Date,Type,Description,Status,Technician\n';
+          maintenance.flat().forEach(entry => {
+            if (entry) {
+              csvContent += `${entry.tankId},${entry.scheduledDate},${entry.maintenanceType},${entry.description},${entry.status},${entry.technician}\n`;
+            }
+          });
+          break;
+          
+        default:
+          return res.status(400).json({ message: 'Invalid report type' });
+      }
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=tank-${type}-report.csv`);
+      res.send(csvContent);
+      
+    } catch (error) {
+      console.error('Error generating report:', error);
+      res.status(500).json({ message: 'Failed to generate report' });
+    }
+  });
+
   return httpServer;
 }

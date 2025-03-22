@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import TanksPage from "@/pages/tanks";
 import TemperaturesPage from "@/pages/temperatures";
 import SettingsPage from "@/pages/settings";
+import ReportsPage from "./pages/reports"; // Added import for ReportsPage
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import MobileSidebar from "@/components/layout/MobileSidebar";
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/tanks" component={TanksPage} />
       <Route path="/temperatures" component={TemperaturesPage} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/reports" component={ReportsPage} /> {/* Added route for ReportsPage */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -37,7 +39,7 @@ function App() {
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
           <MobileSidebar open={mobileMenuOpen} onClose={toggleMobileMenu} />
-          
+
           <div className="flex flex-col flex-1 overflow-hidden">
             <TopBar onMobileMenuToggle={toggleMobileMenu} />
             <main className="flex-1 overflow-y-auto p-4 md:p-6">
